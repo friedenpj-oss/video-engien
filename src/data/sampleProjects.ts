@@ -49,6 +49,182 @@ export interface SampleProject {
 
 export const SAMPLE_PROJECTS: SampleProject[] = [
   {
+    id: 'raboski-italawa-lyric-video',
+    name: 'Raboski - Italawa (Wondernitz Royal Blue Lyric Poster)',
+    badge: '30s • 9:16 Portrait • Wondernitz Block',
+    description: 'Kinetic lyric video with dynamic Wondernitz auto-proportional typography, artist photo spotlight, studio mixer desk sketch, and 3D foil balloon title.',
+    config: {
+      title: 'Raboski - Italawa (Wondernitz Block Lyric Video)',
+      targetDuration: 30,
+      aspectRatio: '9:16',
+      directorInstructions: 'Full kinetic lyric video in vertical format. Short words scale huge to span full margins, longer phrases stack tight. Highlight studio engineering excellence with blue ink mixer sketch and artist spotlight cutout.',
+      style: 'cyberpunk',
+      subtitlesEnabled: true,
+      audioNarrationEnabled: false,
+      bgMusicEnabled: true,
+      musicMood: 'electronic_pulse',
+      projectMode: 'lyric_video',
+      backgroundType: 'procedural',
+      proceduralBgStyle: 'royal_blue_torn_paper',
+      songMetadata: {
+        trackTitle: 'ITALAWA',
+        artistName: 'RABOSKI',
+        releaseDate: '2025-06-12',
+        songwriters: 'Raboski & Wondernitz Soundworks',
+        producers: 'Raboski (Mastering & Mix Lab)',
+        tagline: 'ONE ARTIST. EVERY LAYER.',
+        trackNumber: '04 / 04',
+        artworkUrl: '/assets/aistudio/Italawa_royal_blue_lyric_poster-2_8da11d00.png',
+        artistPhotoUrl: '/assets/aistudio/Raboski__Mixing___Mastering-8_144cdb4c.png',
+      }
+    },
+    documents: [
+      {
+        id: 'doc-raboski-lyrics',
+        name: 'Italawa_Lyrics_Master.md',
+        format: 'markdown',
+        content: `# Raboski - Italawa (Official Lyrics & Stems)
+Artist: Raboski
+Producer: Raboski (Mixing & Mastering Lab)
+Release: 2025-06-12 (Coming Soon)
+Format: 9:16 Kinetic Typography / Wondernitz Block
+
+## Beat 1: Hook Intro
+I NO FIT
+EVER
+STAND FOR
+LINE
+
+## Beat 2: Studio Master
+MIXING & MASTERING
+Balance. Detail. Impact.
+
+## Beat 3: Title Drop
+ITALAWA
+RABOSKI
+OFFICIAL LYRIC VIDEO
+
+## Beat 4: Road Perspective
+SPEEDING DOWN THE GLOWING HIGHWAY
+NEVER LOOKING BACK
+
+## Beat 5: Outro Signature
+ONE ARTIST. EVERY LAYER.
+04 / 04`,
+      }
+    ],
+    visuals: [
+      {
+        id: 'v-italawa-poster',
+        name: 'Italawa_royal_blue_lyric_poster-2.png',
+        url: '/assets/aistudio/Italawa_royal_blue_lyric_poster-2_8da11d00.png',
+        fileType: 'image/png',
+        aspectRatio: 'portrait',
+        tags: ['poster', 'wondernitz', 'royal_blue', 'torn_paper', 'italawa', 'lyrics', 'artist'],
+      },
+      {
+        id: 'v-raboski-artist',
+        name: 'Raboski__Mixing___Mastering-8.png',
+        url: '/assets/aistudio/Raboski__Mixing___Mastering-8_144cdb4c.png',
+        fileType: 'image/png',
+        aspectRatio: 'portrait',
+        tags: ['artist', 'raboski', 'mixing', 'mastering', 'studio', 'portrait', 'cutout'],
+      }
+    ],
+    scenes: [
+      {
+        id: 'scene-italawa-1',
+        sceneNumber: 1,
+        title: 'Wondernitz Block Stack',
+        duration: 6.0,
+        startTime: 0,
+        assignedAssetId: 'v-italawa-poster',
+        scriptBeat: 'I NO FIT EVER STAND FOR LINE',
+        visualPrompt: 'Royal cobalt blue crumpled paper with shredded white edges and bold flush typography',
+        cameraMotion: 'zoom_in',
+        transition: 'crossfade',
+        transitionDuration: 0.6,
+        subtitle: 'I NO FIT\nEVER\nSTAND FOR\nLINE',
+        lowerThird: {
+          title: 'ITALAWA • HOOK',
+          subtitle: 'Wondernitz Auto-Scale Block'
+        }
+      },
+      {
+        id: 'scene-italawa-2',
+        sceneNumber: 2,
+        title: 'Artist Spotlight & Mixer',
+        duration: 6.0,
+        startTime: 6.0,
+        assignedAssetId: 'v-raboski-artist',
+        scriptBeat: 'Mixing & Mastering. Balance. Detail. Impact.',
+        visualPrompt: 'Studio monitor speakers and analog mixing console blueprint with artist photo cutout',
+        cameraMotion: 'cinematic_drift',
+        transition: 'crossfade',
+        transitionDuration: 0.6,
+        subtitle: 'MIXING & MASTERING\nBalance. Detail. Impact.',
+        lowerThird: {
+          title: 'RABOSKI • MASTERING',
+          subtitle: 'Studio Blueprint 04/04'
+        }
+      },
+      {
+        id: 'scene-italawa-3',
+        sceneNumber: 3,
+        title: '3D Inflatable Balloon Drop',
+        duration: 6.0,
+        startTime: 12.0,
+        assignedAssetId: 'v-italawa-poster',
+        scriptBeat: 'Italawa by Raboski Official Lyric Video',
+        visualPrompt: '3D metallic blue foil balloon lettering bouncing with specular shine',
+        cameraMotion: 'zoom_in',
+        transition: 'crossfade',
+        transitionDuration: 0.6,
+        subtitle: 'ITALAWA\nRABOSKI • OFFICIAL LYRIC VIDEO',
+        lowerThird: {
+          title: 'TITLE DROP',
+          subtitle: '3D Blue Balloon Foil'
+        }
+      },
+      {
+        id: 'scene-italawa-4',
+        sceneNumber: 4,
+        title: '3D Perspective Road Runner',
+        duration: 6.0,
+        startTime: 18.0,
+        assignedAssetId: 'v-italawa-poster',
+        scriptBeat: 'Speeding down the glowing highway',
+        visualPrompt: 'Night asphalt highway with neon sunset horizon and lyrics rushing on perspective tarmac',
+        cameraMotion: 'zoom_in',
+        transition: 'crossfade',
+        transitionDuration: 0.6,
+        subtitle: 'SPEEDING DOWN THE GLOWING HIGHWAY',
+        lowerThird: {
+          title: 'ROAD PERSPECTIVE',
+          subtitle: '3D Ground Track'
+        }
+      },
+      {
+        id: 'scene-italawa-5',
+        sceneNumber: 5,
+        title: 'Full Credits & Outro Badge',
+        duration: 6.0,
+        startTime: 24.0,
+        assignedAssetId: 'v-raboski-artist',
+        scriptBeat: 'One artist. Every layer. Written and produced by Raboski.',
+        visualPrompt: 'Torn royal paper finale with full songwriter and producer credits',
+        cameraMotion: 'static',
+        transition: 'dissolve_black',
+        transitionDuration: 0.8,
+        subtitle: 'ONE ARTIST. EVERY LAYER.\nTRACK 04 / 04',
+        lowerThird: {
+          title: 'CREDITS OUTRO',
+          subtitle: 'Full Producer Metadata'
+        }
+      }
+    ]
+  },
+  {
     id: 'drone-horizon-30s',
     name: 'Horizon Apex: Autonomous Flight',
     badge: '30s • 16:9 Landscape',

@@ -57,6 +57,22 @@ export interface VideoScene {
   };
 }
 
+export interface SongMetadata {
+  trackTitle: string;
+  artistName: string;
+  featuredArtists?: string;
+  songwriters?: string;
+  producers?: string;
+  releaseDate?: string;
+  albumTitle?: string;
+  label?: string;
+  tagline?: string;
+  trackNumber?: string;
+  artworkUrl?: string;
+  artistPhotoUrl?: string;
+  previewAudioUrl?: string;
+}
+
 export interface ProjectConfig {
   title: string;
   targetDuration: number; // 30, 60, 90, 120, etc.
@@ -67,6 +83,13 @@ export interface ProjectConfig {
   audioNarrationEnabled: boolean;
   bgMusicEnabled: boolean;
   musicMood: 'ambient_epic' | 'electronic_pulse' | 'acoustic_warm' | 'minimalist_piano';
+  
+  // Lyric Video Specific Properties
+  projectMode?: 'storyboard' | 'lyric_video';
+  backgroundType?: 'picture' | 'video' | 'procedural';
+  proceduralBgStyle?: 'royal_blue_torn_paper' | 'studio_mixer_sketch' | 'night_highway' | 'cosmic_nebula' | 'neon_mesh' | 'sunset_fog' | 'crt_vhs';
+  bgVideoUrl?: string;
+  songMetadata?: SongMetadata;
 }
 
 export interface SequencingResponse {

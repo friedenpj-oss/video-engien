@@ -15,13 +15,23 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { VideoScene, VisualAsset, AspectRatio, ProjectConfig } from '../types/index';
+import { StylePreset, CaptionConfig } from '../types/styles';
 import { getTimelineState, getTotalDuration, formatTimecode } from '../utils/timelineEngine';
+import { calculateSpring } from '../utils/springPhysics';
 import { audioSynth } from '../utils/audioSynthesizer';
+import { 
+  renderWondernitzBlock, 
+  renderArtistSpotlight, 
+  renderPerspective3D, 
+  renderProceduralBackground 
+} from '../utils/lyricCanvasRenderer';
 
 interface ContinuousVideoPlayerProps {
   scenes: VideoScene[];
   visuals: VisualAsset[];
   config: ProjectConfig;
+  stylePreset?: StylePreset;
+  captionConfig?: CaptionConfig;
   currentTime: number;
   onTimeUpdate: (time: number) => void;
   onSelectScene: (sceneId: string) => void;
@@ -33,6 +43,8 @@ export const ContinuousVideoPlayer: React.FC<ContinuousVideoPlayerProps> = ({
   scenes,
   visuals,
   config,
+  stylePreset,
+  captionConfig,
   currentTime,
   onTimeUpdate,
   onSelectScene,
@@ -49,11 +61,23 @@ export const ContinuousVideoPlayer: React.FC<ContinuousVideoPlayerProps> = ({
 
   // Asset image cache: assetId -> HTMLImageElement
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const artistImageRef = useRef<HTMLImageElement | null>(null);
   const lastActiveSceneIdRef = useRef<string | null>(null);
   const animFrameIdRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
 
   const totalDuration = getTotalDuration(scenes) || config.targetDuration;
+
+  // Preload artist image for spotlight mode
+  useEffect(() => {
+    const artistUrl = config.songMetadata?.artistPhotoUrl || '/assets/aistudio/Raboski__Mixing___Mastering-8_144cdb4c.png';
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = artistUrl;
+    img.onload = () => {
+      artistImageRef.current = img;
+    };
+  }, [config.songMetadata?.artistPhotoUrl]);
 
   // Preload visual assets into HTMLImageElement cache
   useEffect(() => {
@@ -218,70 +242,164 @@ export const ContinuousVideoPlayer: React.FC<ContinuousVideoPlayerProps> = ({
       ctx.restore();
     };
 
-    // Draw active scene
-    if (inTransition && nextScene) {
-      if (activeScene.transition === 'dissolve_black') {
-        // Fade to black then fade in next
-        const half = 0.5;
-        if (transitionProgress < half) {
-          drawSceneImage(activeScene, sceneProgress, 1 - (transitionProgress / half));
-        } else {
-          drawSceneImage(nextScene, 0, (transitionProgress - half) / half);
-        }
-      } else if (activeScene.transition === 'wipe_right') {
-        drawSceneImage(activeScene, sceneProgress, 1.0);
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(0, 0, width * transitionProgress, height);
-        ctx.clip();
-        drawSceneImage(nextScene, 0, 1.0);
-        ctx.restore();
-      } else {
-        // Standard crossfade
-        drawSceneImage(activeScene, sceneProgress, 1.0);
-        drawSceneImage(nextScene, 0, transitionProgress);
-      }
+    // Handle background layer (Procedural / Video / Image)
+    const bgMode = config.backgroundType || (stylePreset?.lyricLayoutMode ? 'procedural' : 'picture');
+    
+    if (bgMode === 'procedural' && (stylePreset?.proceduralTheme || config.proceduralBgStyle)) {
+      renderProceduralBackground(
+        ctx,
+        config.proceduralBgStyle || stylePreset?.proceduralTheme || 'royal_blue_torn_paper',
+        width,
+        height,
+        time
+      );
     } else {
-      drawSceneImage(activeScene, sceneProgress, 1.0);
+      // Draw image / video scene
+      if (inTransition && nextScene) {
+        if (activeScene.transition === 'dissolve_black') {
+          // Fade to black then fade in next
+          const half = 0.5;
+          if (transitionProgress < half) {
+            drawSceneImage(activeScene, sceneProgress, 1 - (transitionProgress / half));
+          } else {
+            drawSceneImage(nextScene, 0, (transitionProgress - half) / half);
+          }
+        } else if (activeScene.transition === 'wipe_right') {
+          drawSceneImage(activeScene, sceneProgress, 1.0);
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, 0, width * transitionProgress, height);
+          ctx.clip();
+          drawSceneImage(nextScene, 0, 1.0);
+          ctx.restore();
+        } else {
+          // Standard crossfade
+          drawSceneImage(activeScene, sceneProgress, 1.0);
+          drawSceneImage(nextScene, 0, transitionProgress);
+        }
+      } else {
+        drawSceneImage(activeScene, sceneProgress, 1.0);
+      }
     }
 
-    // Vignette & Cinematic Letterbox/Glow
+    // Vignette
     const vignette = ctx.createRadialGradient(
       width / 2, height / 2, Math.min(width, height) * 0.4,
       width / 2, height / 2, Math.max(width, height) * 0.75
     );
     vignette.addColorStop(0, 'rgba(0,0,0,0)');
-    vignette.addColorStop(1, 'rgba(0,0,0,0.5)');
+    vignette.addColorStop(1, `rgba(0,0,0,${stylePreset?.vignette ?? 0.5})`);
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
 
-    // Overlays: Subtitles and Lower Third
-    if (showOverlays && config.subtitlesEnabled && activeScene.subtitle) {
-      ctx.save();
-      const fontSize = isPortrait ? Math.round(width * 0.045) : Math.round(width * 0.024);
-      ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-      ctx.textAlign = 'center';
+    // Cinematic 2.39:1 Letterbox Bars
+    if (stylePreset?.letterbox) {
+      const barHeight = Math.round(height * 0.1);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, width, barHeight);
+      ctx.fillRect(0, height - barHeight, width, barHeight);
+    }
 
-      const yPos = isPortrait ? height * 0.78 : height * 0.88;
-      const text = activeScene.subtitle;
+    // SPECIFIC LYRIC ENGINE LAYOUT MODES
+    if (showOverlays && config.subtitlesEnabled) {
+      if (stylePreset?.lyricLayoutMode === 'wondernitz_block') {
+        renderWondernitzBlock({
+          ctx,
+          width,
+          height,
+          text: activeScene.subtitle || activeScene.scriptBeat || 'I NO FIT\nEVER\nSTAND FOR\nLINE',
+          songMetadata: config.songMetadata,
+          progress: sceneProgress,
+          stylePreset,
+          isPortrait,
+          time,
+          artistImage: artistImageRef.current
+        });
+        return; // Wondernitz fills the complete poster canvas
+      } else if (stylePreset?.lyricLayoutMode === 'artist_spotlight') {
+        renderArtistSpotlight({
+          ctx,
+          width,
+          height,
+          text: activeScene.subtitle || activeScene.scriptBeat || 'MIXING & MASTERING',
+          songMetadata: config.songMetadata,
+          progress: sceneProgress,
+          stylePreset,
+          isPortrait,
+          time,
+          artistImage: artistImageRef.current
+        });
+        return; // Artist spotlight fills the complete poster canvas
+      } else if (stylePreset?.lyricLayoutMode === 'perspective_3d') {
+        renderPerspective3D({
+          ctx,
+          width,
+          height,
+          text: activeScene.subtitle || activeScene.scriptBeat || 'SPEEDING DOWN THE GLOWING HIGHWAY',
+          songMetadata: config.songMetadata,
+          progress: sceneProgress,
+          stylePreset,
+          isPortrait,
+          time,
+        });
+        return;
+      }
 
-      // Measure text for background pill
-      const metrics = ctx.measureText(text);
-      const pillWidth = Math.min(width * 0.9, metrics.width + 36);
-      const pillHeight = fontSize * 1.8;
+      // Standard / kinetic overlay subtitles
+      if (activeScene.subtitle) {
+        ctx.save();
+        const fontFamily = captionConfig?.fontFamily || 'Montserrat';
+        const fontSize = isPortrait ? Math.round(width * 0.045) : Math.round(width * 0.025);
+        const fontWeight = captionConfig?.fontWeight || 800;
+        ctx.font = `${fontWeight} ${fontSize}px "${fontFamily}", -apple-system, sans-serif`;
+        ctx.textAlign = 'center';
 
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-      ctx.beginPath();
-      ctx.roundRect((width - pillWidth) / 2, yPos - pillHeight / 1.4, pillWidth, pillHeight, 14);
-      ctx.fill();
+        const yPos = isPortrait 
+          ? height * (captionConfig?.positionY || 0.78)
+          : height * (captionConfig?.positionY || 0.86);
 
-      // Text with drop shadow
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 6;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(text, width / 2, yPos);
+        const words = activeScene.subtitle.split(' ');
+        const totalWords = words.length;
+        const activeWordIndex = Math.min(totalWords - 1, Math.floor(sceneProgress * totalWords));
 
-      ctx.restore();
+        // Calculate total text width for background pill
+        const fullText = captionConfig?.textTransform === 'uppercase' 
+          ? activeScene.subtitle.toUpperCase() 
+          : activeScene.subtitle;
+
+        const metrics = ctx.measureText(fullText);
+        const pillWidth = Math.min(width * 0.92, metrics.width + 48);
+        const pillHeight = fontSize * 1.9;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.beginPath();
+        ctx.roundRect((width - pillWidth) / 2, yPos - pillHeight / 1.4, pillWidth, pillHeight, 16);
+        ctx.fill();
+
+        // Draw words with kinetic highlight on current word
+        const startX = width / 2 - metrics.width / 2;
+        let curX = startX;
+
+        words.forEach((word, wIdx) => {
+          const isCurrent = wIdx === activeWordIndex;
+          const displayWord = captionConfig?.textTransform === 'uppercase' ? word.toUpperCase() : word;
+          
+          ctx.fillStyle = isCurrent 
+            ? (captionConfig?.highlightColor || '#fbbf24') 
+            : (captionConfig?.textColor || '#ffffff');
+
+          ctx.shadowColor = 'rgba(0,0,0,0.9)';
+          ctx.shadowBlur = isCurrent ? 10 : 5;
+
+          ctx.textAlign = 'left';
+          ctx.fillText(displayWord, curX, yPos);
+
+          const wordMetric = ctx.measureText(displayWord + ' ');
+          curX += wordMetric.width;
+        });
+
+        ctx.restore();
+      }
     }
 
     // Lower Third / Scene Tag Overlay

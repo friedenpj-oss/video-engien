@@ -13,7 +13,8 @@ import {
   Music,
   CheckCircle,
   AlertCircle,
-  Wand2
+  Wand2,
+  Zap
 } from 'lucide-react';
 import { VisualAsset, ScriptDocument, ProjectConfig } from '../types/index';
 import { ingestFileList, getFilesFromDataTransfer } from '../utils/fileExtractors';
@@ -32,6 +33,10 @@ interface AssetHubProps {
   onRunSequencing: () => void;
   isSequencing: boolean;
   assignedAssetIds: Set<string>;
+  useLocalEngine: boolean;
+  onToggleLocalEngine: (val: boolean) => void;
+  activeModelName: string;
+  activeStyleName: string;
 }
 
 export const AssetHub: React.FC<AssetHubProps> = ({
@@ -48,6 +53,10 @@ export const AssetHub: React.FC<AssetHubProps> = ({
   onRunSequencing,
   isSequencing,
   assignedAssetIds,
+  useLocalEngine,
+  onToggleLocalEngine,
+  activeModelName,
+  activeStyleName,
 }) => {
   const [activeTab, setActiveTab] = useState<'visuals' | 'script' | 'director'>('visuals');
   const [isDragging, setIsDragging] = useState(false);
@@ -457,27 +466,69 @@ export const AssetHub: React.FC<AssetHubProps> = ({
       </div>
 
       {/* Bottom Primary Action Bar */}
-      <div className="p-3 border-t border-zinc-800 bg-zinc-950 shrink-0">
+      <div className="p-3 border-t border-zinc-800 bg-zinc-950 shrink-0 space-y-2">
+        {/* Engine Mode Toggle */}
+        <div className="flex items-center justify-between p-1 bg-zinc-900 border border-zinc-800 rounded-xl text-[11px]">
+          <button
+            type="button"
+            onClick={() => onToggleLocalEngine(true)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg font-medium transition-all ${
+              useLocalEngine
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+            title="Parse, pace, and sequence locally on your device without any external LLM"
+          >
+            <Zap className="w-3 h-3" />
+            <span>Local Engine (Zero LLM)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onToggleLocalEngine(false)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg font-medium transition-all ${
+              !useLocalEngine
+                ? 'bg-rose-600 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+            title={`Use selected external model: ${activeModelName}`}
+          >
+            <Sparkles className="w-3 h-3" />
+            <span className="truncate">{activeModelName.split(' ')[0]}</span>
+          </button>
+        </div>
+
         <button
           onClick={onRunSequencing}
           disabled={isSequencing}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-gradient-to-r from-rose-600 via-rose-500 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 shadow-lg shadow-rose-950/40 disabled:opacity-50 transition-all hover:scale-[1.01] active:scale-[0.99]"
+          className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-xs text-white shadow-lg disabled:opacity-50 transition-all hover:scale-[1.01] active:scale-[0.99] ${
+            useLocalEngine
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-950/40'
+              : 'bg-gradient-to-r from-rose-600 via-rose-500 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 shadow-rose-950/40'
+          }`}
         >
           {isSequencing ? (
             <>
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               <span>Sequencing {config.targetDuration}s Continuous Video...</span>
             </>
+          ) : useLocalEngine ? (
+            <>
+              <Zap className="w-4 h-4 text-emerald-300" />
+              <span>Sequence Locally (Zero-LLM Offline)</span>
+            </>
           ) : (
             <>
               <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-              <span>Sequence Continuous {config.targetDuration}s Video</span>
+              <span>Sequence with {activeModelName}</span>
             </>
           )}
         </button>
-        <p className="text-[10px] text-center text-zinc-400 mt-1.5">
-          Analyzes guidelines, pairs uploaded visuals, and calibrates {config.aspectRatio} pacing.
-        </p>
+
+        <div className="flex items-center justify-between text-[10px] text-zinc-400 px-0.5">
+          <span>Style: <strong className="text-zinc-300">{activeStyleName}</strong></span>
+          <span>Mode: <strong className="text-zinc-300">{useLocalEngine ? 'Offline Local' : 'Cloud API'}</strong></span>
+        </div>
       </div>
 
       {/* Image Preview Modal */}

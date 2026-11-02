@@ -7,7 +7,10 @@ import {
   Monitor, 
   Smartphone, 
   Sparkles,
-  Layers
+  Layers,
+  Palette,
+  Cpu,
+  Settings
 } from 'lucide-react';
 import { AspectRatio, ProjectConfig } from '../types/index';
 import { SAMPLE_PROJECTS, SampleProject } from '../data/sampleProjects';
@@ -18,6 +21,10 @@ interface HeaderProps {
   onLoadSample: (sample: SampleProject) => void;
   onOpenExport: () => void;
   onExportSpec: () => void;
+  onOpenStyleDrawer: () => void;
+  onOpenPipelineBridge: () => void;
+  onOpenSettings: () => void;
+  activeStyleName?: string;
   sceneCount: number;
   totalDuration: number;
 }
@@ -28,6 +35,10 @@ export const Header: React.FC<HeaderProps> = ({
   onLoadSample,
   onOpenExport,
   onExportSpec,
+  onOpenStyleDrawer,
+  onOpenPipelineBridge,
+  onOpenSettings,
+  activeStyleName,
   sceneCount,
   totalDuration,
 }) => {
@@ -127,17 +138,47 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right Actions: Sample Presets, Spec, and Export Video */}
+      {/* Right Actions: Style Studio, Remotion Bridge, Settings, and Export */}
       <div className="flex items-center gap-2">
+        {/* Style & Font Studio Button */}
+        <button
+          onClick={onOpenStyleDrawer}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-amber-300 border border-amber-500/30 rounded-lg transition-colors"
+          title="Open Style & Font Studio"
+        >
+          <Palette className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Styles & Fonts</span>
+        </button>
+
+        {/* Remotion / Hyperframe Bridge Button */}
+        <button
+          onClick={onOpenPipelineBridge}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-indigo-300 border border-indigo-500/30 rounded-lg transition-colors"
+          title="Remotion & Hyperframe Pipeline Bridge"
+        >
+          <Cpu className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Remotion / Hyperframe</span>
+        </button>
+
+        {/* Settings Button */}
+        <button
+          onClick={onOpenSettings}
+          className="p-1.5 text-zinc-300 bg-zinc-900 hover:bg-zinc-800 hover:text-white border border-zinc-800 rounded-lg transition-colors"
+          title="External Models & Pipeline Settings"
+          aria-label="Settings"
+        >
+          <Settings className="w-4 h-4" />
+        </button>
+
         {/* Sample Projects Selector */}
         <div className="relative">
           <button
             onClick={() => setIsSampleMenuOpen(!isSampleMenuOpen)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 rounded-lg transition-colors"
             title="Load ready-made continuous video projects"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Load Sample</span>
+            <span className="hidden md:inline">Sample</span>
           </button>
           
           {isSampleMenuOpen && (
@@ -166,24 +207,14 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Export Storyboard / Brief */}
-        <button
-          onClick={onExportSpec}
-          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 rounded-lg transition-colors"
-          title="Export production script & AI video prompt brief"
-        >
-          <FileText className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Export Spec</span>
-        </button>
-
         {/* Export Continuous Video */}
         <button
           onClick={onOpenExport}
-          className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white rounded-lg shadow-md shadow-rose-900/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white rounded-lg shadow-md shadow-rose-900/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
           title="Record and render continuous video file"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>Render & Export Video</span>
+          <span className="hidden sm:inline">Render</span>
         </button>
       </div>
     </header>

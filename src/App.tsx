@@ -9,7 +9,13 @@ import { AssetHub } from './components/AssetHub';
 import { ContinuousVideoPlayer } from './components/ContinuousVideoPlayer';
 import { TimelineEditor } from './components/TimelineEditor';
 import { ExportModal } from './components/ExportModal';
+import { StyleFontDrawer } from './components/StyleFontDrawer';
+import { PipelineBridgeModal } from './components/PipelineBridgeModal';
+import { SettingsModal } from './components/SettingsModal';
+import { LyricControlsBar } from './components/LyricControlsBar';
 import { SAMPLE_PROJECTS, SampleProject } from './data/sampleProjects';
+import { STYLE_PRESETS } from './data/styleLibrary';
+import { DEFAULT_CAPTION_CONFIG, loadGoogleFont } from './data/fontLibrary';
 import { 
   ProjectConfig, 
   VisualAsset, 
@@ -17,13 +23,16 @@ import {
   VideoScene, 
   AspectRatio 
 } from './types/index';
+import { StylePreset, CaptionConfig } from './types/styles';
+import { AppSettings } from './types/settings';
 import { 
   computeSceneTimings, 
   rescaleTimeline, 
   reorderScenes, 
   getTotalDuration 
 } from './utils/timelineEngine';
-import { generateHeuristicScenes } from './utils/scriptParser';
+import { understandScriptLocally } from './utils/localIntelligence';
+import { loadSettings, saveSettings } from './utils/settingsStorage';
 
 export default function App() {
   // Load initial demo project (Horizon Apex 30s Landscape)
@@ -37,11 +46,31 @@ export default function App() {
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(initialSample.scenes[0]?.id || null);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isSequencing, setIsSequencing] = useState<boolean>(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
 
-  // Split-pane width / layout
-  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(360);
+  // New Modals and Drawers
+  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+  const [isStyleDrawerOpen, setIsStyleDrawerOpen] = useState<boolean>(false);
+  const [isPipelineBridgeOpen, setIsPipelineBridgeOpen] = useState<boolean>(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
+
+  // Style and Font States
+  const [currentStyle, setCurrentStyle] = useState<StylePreset>(STYLE_PRESETS[0]);
+  const [captionConfig, setCaptionConfig] = useState<CaptionConfig>(DEFAULT_CAPTION_CONFIG);
+
+  // Engine Mode: Zero-LLM Local Offline vs Cloud Model
+  const [useLocalEngine, setUseLocalEngine] = useState<boolean>(true);
+
+  // Settings State
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+
+  // Layout width
+  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(370);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Preload initial font
+  useEffect(() => {
+    loadGoogleFont(captionConfig.fontFamily);
+  }, [captionConfig.fontFamily]);
 
   // Compute set of visual asset IDs assigned to at least one scene
   const assignedAssetIds = useMemo(() => {
@@ -51,6 +80,10 @@ export default function App() {
     });
     return ids;
   }, [scenes]);
+
+  const activeLlm = useMemo(() => {
+    return settings.models.find(m => m.id === settings.selectedLlmId) || settings.models[0];
+  }, [settings]);
 
   // Load sample project preset
   const handleLoadSample = (sample: SampleProject) => {
@@ -75,10 +108,29 @@ export default function App() {
     });
   };
 
-  // Run AI Sequencing Engine (calls backend or heuristic fallback)
+  // Run AI / Local Offline Sequencing Engine
   const handleRunSequencing = async () => {
     setIsSequencing(true);
+
     try {
+      if (useLocalEngine) {
+        // Zero-LLM Offline Pipeline
+        // Small delay to simulate responsive calculation thread
+        await new Promise(r => setTimeout(r, 120));
+        const result = understandScriptLocally(
+          scriptText,
+          visuals,
+          config.targetDuration,
+          currentStyle,
+          config.directorInstructions
+        );
+        setScenes(result.scenes);
+        setSelectedSceneId(result.scenes[0]?.id || null);
+        setCurrentTime(0);
+        return;
+      }
+
+      // External Cloud Model Mode
       const response = await fetch('/api/analyze-and-sequence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -90,6 +142,7 @@ export default function App() {
           aspectRatio: config.aspectRatio,
           directorInstructions: config.directorInstructions,
           style: config.style,
+          selectedModel: activeLlm.modelIdentifier,
         }),
       });
 
@@ -107,17 +160,16 @@ export default function App() {
         throw new Error('Invalid scene sequence returned');
       }
     } catch (err: any) {
-      console.warn('API sequencing fallback triggered:', err.message);
-      // Fallback locally
-      const generated = generateHeuristicScenes(
-        scriptText, 
-        visuals, 
-        config.targetDuration, 
+      console.warn('Fallback to local intelligence:', err.message);
+      const result = understandScriptLocally(
+        scriptText,
+        visuals,
+        config.targetDuration,
+        currentStyle,
         config.directorInstructions
       );
-      const rescaled = rescaleTimeline(generated, config.targetDuration);
-      setScenes(rescaled);
-      setSelectedSceneId(rescaled[0]?.id || null);
+      setScenes(result.scenes);
+      setSelectedSceneId(result.scenes[0]?.id || null);
       setCurrentTime(0);
     } finally {
       setIsSequencing(false);
@@ -131,7 +183,6 @@ export default function App() {
 
   const handleRemoveVisual = (id: string) => {
     setVisuals(prev => prev.filter(v => v.id !== id));
-    // Clear assignment in scenes if used
     setScenes(prev => prev.map(s => s.assignedAssetId === id ? { ...s, assignedAssetId: undefined } : s));
   };
 
@@ -237,21 +288,6 @@ export default function App() {
     setScenes(rescaleTimeline(scenes, config.targetDuration));
   };
 
-  // Keyboard shortcut for Play/Pause (Space)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['input', 'textarea', 'select'].includes((e.target as HTMLElement).tagName.toLowerCase())) {
-        return;
-      }
-      if (e.code === 'Space') {
-        e.preventDefault();
-        // Playhead toggle handled in ContinuousVideoPlayer
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   return (
     <div className="flex flex-col h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans select-none">
       {/* Top Header */}
@@ -261,6 +297,10 @@ export default function App() {
         onLoadSample={handleLoadSample}
         onOpenExport={() => setIsExportModalOpen(true)}
         onExportSpec={() => setIsExportModalOpen(true)}
+        onOpenStyleDrawer={() => setIsStyleDrawerOpen(true)}
+        onOpenPipelineBridge={() => setIsPipelineBridgeOpen(true)}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
+        activeStyleName={currentStyle.name}
         sceneCount={scenes.length}
         totalDuration={getTotalDuration(scenes)}
       />
@@ -286,17 +326,32 @@ export default function App() {
             onRunSequencing={handleRunSequencing}
             isSequencing={isSequencing}
             assignedAssetIds={assignedAssetIds}
+            useLocalEngine={useLocalEngine}
+            onToggleLocalEngine={setUseLocalEngine}
+            activeModelName={activeLlm.name}
+            activeStyleName={currentStyle.name}
           />
         </div>
 
         {/* Center & Bottom: Video Player & Timeline Editor */}
         <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
-          {/* Top Half: Continuous Video Canvas Preview Player */}
-          <div className="h-[55%] min-h-0 w-full overflow-hidden">
+          {/* Musician Lyric Engine & Background Media Bar */}
+          <LyricControlsBar
+            config={config}
+            onUpdateConfig={handleUpdateConfig}
+            currentStyle={currentStyle}
+            onSelectStyle={setCurrentStyle}
+            stylePresets={STYLE_PRESETS}
+          />
+
+          {/* Top Half: Continuous Video Canvas Preview Player with Remotion Springs & LUTs */}
+          <div className="h-[52%] min-h-0 w-full overflow-hidden">
             <ContinuousVideoPlayer
               scenes={scenes}
               visuals={visuals}
               config={config}
+              stylePreset={currentStyle}
+              captionConfig={captionConfig}
               currentTime={currentTime}
               onTimeUpdate={setCurrentTime}
               onSelectScene={setSelectedSceneId}
@@ -327,6 +382,42 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Style & Font Drawer */}
+      <StyleFontDrawer
+        isOpen={isStyleDrawerOpen}
+        onClose={() => setIsStyleDrawerOpen(false)}
+        currentStyle={currentStyle}
+        onSelectStyle={(s) => {
+          setCurrentStyle(s);
+          if (s.aspectRatioDefault) {
+            handleUpdateConfig({ aspectRatio: s.aspectRatioDefault });
+          }
+        }}
+        onUpdateStyle={(upd) => setCurrentStyle(prev => ({ ...prev, ...upd }))}
+        captionConfig={captionConfig}
+        onUpdateCaptionConfig={(upd) => setCaptionConfig(prev => ({ ...prev, ...upd }))}
+      />
+
+      {/* Remotion & Hyperframe Pipeline Bridge Modal */}
+      <PipelineBridgeModal
+        isOpen={isPipelineBridgeOpen}
+        onClose={() => setIsPipelineBridgeOpen(false)}
+        scenes={scenes}
+        visuals={visuals}
+        config={config}
+        style={currentStyle}
+        captionConfig={captionConfig}
+        pipelineConfig={settings.pipeline}
+      />
+
+      {/* External Models & Pipeline Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        settings={settings}
+        onUpdateSettings={setSettings}
+      />
 
       {/* Export & Render Modal */}
       <ExportModal
