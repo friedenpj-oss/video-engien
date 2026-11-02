@@ -1,0 +1,6 @@
+{
+  "name": "DirectorFlow - Continuous AI Video Studio",
+  "description": "Assemble scripts, guidelines, and visual assets from ZIPs, folders, documents, and PDFs into continuous 30s, 60s, 90s+ landscape or portrait videos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
